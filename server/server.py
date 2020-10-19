@@ -5,6 +5,7 @@ from player import Player
 from server_package import ServerPackage
 from game import Game
 from client import Client
+from client_package import ClientPackage
 
 host = '127.0.0.1'
 port = 4444
@@ -20,9 +21,6 @@ try:
 except socket.error:
     pass
 
-print('Waiting for players...')
-s.listen(8)
-
 def handle_player(connection):
     global players, connections, in_game
     connections.append(connection)  # add to connections
@@ -33,9 +31,13 @@ def handle_player(connection):
     package = ServerPackage()
     broadcast(players_to_clients(players))  # send the updated list of connected players to all clients
     ready = False
+    client_info = ClientPackage()
     while True:
         try:
-            client_info = pickle.loads(connection.recv(2048))
+            try:
+                client_info = pickle.loads(connection.recv(2048))
+            except:
+                pass
             if not all_players_ready():  # lobby logic
                 if client_info.ready and not ready:
                     player.ready = True
@@ -57,8 +59,8 @@ def handle_player(connection):
 
                     if package.is_drawing:
                         broadcast(client_info.grid_data)
-                elif not player.game:
-                    print('Game Ended!')
+                else:
+                    print('Game ended!')
 
         except socket.error:
             print(f'{player.name} disconnected.')
@@ -74,15 +76,12 @@ def handle_player(connection):
 def broadcast(data):  # sends data to all connected clients
     for connection in connections:
         try:
-            connection.send(pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL))
+            connection.send(pickle.dumps(data))
         except Exception as ex:
             print(ex)
 
-def players_to_clients(_players):
-    arr = []
-    for player in _players:
-        arr.append(Client.parse_player(player))
-    return arr
+def players_to_clients(list):  # converts a list of players into a list of clients
+    return [Client.parse_player(player) for player in list]
 
 def all_players_ready():  # start game if all players are ready
     if in_game:
@@ -96,7 +95,11 @@ def all_players_ready():  # start game if all players are ready
             return True
     return False
 
-while True:
-    conn, addr = s.accept()
-    print('Connected to', conn)
-    start_new_thread(handle_player, (conn, ))  # starting new thread for handling the lobby logic for the client
+if not in_game:
+    print('Waiting for players...')
+    s.listen(8)
+
+    while True:
+        conn, addr = s.accept()
+        print('Connected to', conn)
+        start_new_thread(handle_player, (conn, ))  # starting new thread for handling the lobby logic for the client

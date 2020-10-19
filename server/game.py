@@ -23,7 +23,7 @@ class Game:
 
     def get_random_word(self):
         words = []
-        with open('words.txt', 'r') as f:
+        with open('./server/words.txt', 'r') as f:
             for line in f.readlines():
                 word = line.strip()
                 if word not in self.used_words:

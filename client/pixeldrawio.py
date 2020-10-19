@@ -248,11 +248,12 @@ def main_menu():
     sys.exit()
 
 def handle_data():
-    global server_info, connected_clients, client, start
+    global server_info, connected_clients, client, start, grid
     while True:
         data = network.receive()
         if isinstance(data, list):
             connected_clients = data
+            print('updated clients')
             for c in connected_clients:  # get current client
                 if c.uid == client.uid:
                     client = c
