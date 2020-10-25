@@ -1,9 +1,8 @@
 import pygame
 import sys
 from color_palette import ColorPalette
-from client_package import ClientPackage
-from server_package import ServerPackage
 from top_bar import TopBar
+from chat import Chat
 from colors import Colors
 from grid import Grid
 from button import Button
@@ -22,39 +21,39 @@ pygame.display.set_caption('PixelDraw.io')
 clock = pygame.time.Clock()
 
 # custom recursion limit for the flood fill algorithm to prevent game crashes
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(100000)
 
 # global variables
 client = None
 connected_clients = []
-server_info = ServerPackage()
-package = ClientPackage()
 start = False
+in_game = False
 
 network = Network()
 
 X_OFF = 316
 Y_OFF = 90
 grid = Grid(x_cells=64, y_cells=64, cell_size=12, x_off=X_OFF, y_off=Y_OFF, color=Colors.WHITE)
-grid_on_icon = pygame.image.load('assets/icons/grid_on.png')
-grid_off_icon = pygame.image.load('assets/icons/grid_off.png')
+grid_on_icon = pygame.image.load('client/assets/icons/grid_on.png')
+grid_off_icon = pygame.image.load('client/assets/icons/grid_on.png')
 
 toggle_btn = Button(Colors.WHITE, X_OFF, Y_OFF + (grid.yCells * grid.cellSize) + 25, 50, 50, text=None, icon=grid_on_icon)
 palette = ColorPalette()
 selected_color_surface = pygame.Surface((50, 49))
 
 topbar = TopBar(15, 15, 1370, 60)
+chat = Chat(1400 - 316 + 15, Y_OFF)
 
 # load icons & initiate drawing tools
-brush_icon = pygame.image.load('assets/icons/brush.png')
+brush_icon = pygame.image.load('client/assets/icons/brush.png')
 brush = Tool('brush', brush_icon, (727, Y_OFF + (grid.yCells * grid.cellSize) + 25))
-eraser_icon = pygame.image.load('assets/icons/eraser.png')
+eraser_icon = pygame.image.load('client/assets/icons/eraser.png')
 eraser = Tool('eraser', eraser_icon, (782, Y_OFF + (grid.yCells * grid.cellSize) + 25))
-eyedropper_icon = pygame.image.load('assets/icons/eyedropper.png')
+eyedropper_icon = pygame.image.load('client/assets/icons/eyedropper.png')
 eyedropper = Tool('eyedropper', eyedropper_icon, (837, Y_OFF + (grid.yCells * grid.cellSize) + 25))
-fill_icon = pygame.image.load('assets/icons/fill.png')
+fill_icon = pygame.image.load('client/assets/icons/fill.png')
 fill = Tool('fill', fill_icon, (892, Y_OFF + (grid.yCells * grid.cellSize) + 25))
-delete_icon = pygame.image.load('assets/icons/delete.png')
+delete_icon = pygame.image.load('client/assets/icons/delete.png')
 delete = Tool('delete', delete_icon, (947, Y_OFF + (grid.yCells * grid.cellSize) + 25))
 
 def repaint():
@@ -64,7 +63,7 @@ def repaint():
     if grid.showLines:
         grid.draw_lines(screen)
 
-    if server_info.is_drawing:  # only draw bottom bar if player is drawing
+    if client.drawing:  # only draw bottom bar if player is drawing
         topbar.is_drawing = True
 
         toggle_btn.draw(screen, None, None, None, None)
@@ -97,10 +96,9 @@ def repaint():
         else:
             c.draw_game_widget(screen, 15, grid.yOff + i * 55, Colors.WHITE, c.uid == client.uid)
 
-    topbar.time = server_info.time
-    if topbar.word == '' or topbar.word != server_info.word:
-        topbar.word = server_info.word
     topbar.draw(screen)
+
+    chat.draw(screen)
 
 def flood_fill(col, row, target_color, replacement_color):  # recursive flood fill algorithm
     if target_color == replacement_color:
@@ -123,25 +121,26 @@ def flood_fill(col, row, target_color, replacement_color):  # recursive flood fi
 
 def main():
     while True:
-        clock.tick(60)  # set fps to 60
+        clock.tick(144)  # set fps to 144
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if pygame.mouse.get_pressed()[0]:  # clicked left mouse button
                 pos = pygame.mouse.get_pos()
-                if grid.xOff < pos[0] < grid.xOff + (grid.xCells * grid.cellSize) and grid.yOff < pos[1] < grid.yOff + (grid.yCells * grid.cellSize) and server_info.is_drawing:  # clicked inside the grid
+                if grid.xOff < pos[0] < grid.xOff + (grid.xCells * grid.cellSize) and grid.yOff < pos[1] < grid.yOff + (grid.yCells * grid.cellSize) and client.drawing:  # clicked inside the grid
                     col = (pos[0] - grid.xOff) // grid.cellSize
                     row = (pos[1] - grid.yOff) // grid.cellSize
 
                     if Tool.selected == 'brush':
                         grid.set_color(row, col, palette.selected_color)
-                        package.grid_data = (palette.selected_color, row, col)
-                        network.send(package)
+                        network.send({'grid_data': (row, col, palette.selected_color)})
                     elif Tool.selected == 'eraser':
                         grid.set_color(row, col, grid.color)
+                        network.send({'grid_data': (row, col, grid.color)})
                     elif Tool.selected == 'fill':
                         flood_fill(col, row, grid.grid[col][row].color, palette.selected_color)
+                        network.send(grid.get_compressed_grid())
                     elif Tool.selected == 'eyedropper':
                         palette.selected_color = grid.grid[col][row].color
 
@@ -158,6 +157,7 @@ def main():
 
                 if delete.hover(pos):  # clicked delete tool
                     grid.clear()
+                    network.send({'grid_data': 'clear'})
                 elif brush.hover(pos):  # clicked brush tool
                     brush.set_selected()
                 elif eraser.hover(pos):  # clicked eraser tool
@@ -167,19 +167,37 @@ def main():
                 elif eyedropper.hover(pos):  # clicked eyedropper tool
                     eyedropper.set_selected()
 
+                if not client.drawing:
+                    if chat.input_hover(pos):
+                        chat.input_active = True
+                    else:
+                        chat.input_active = False
+
+            if event.type == pygame.KEYDOWN:
+                if not client.drawing:
+                    if chat.input_active:
+                        if event.key == pygame.K_RETURN:
+                            network.send({'guess': chat.message})
+                            chat.message = ''
+                            chat.input_active = False
+                        elif event.key == pygame.K_BACKSPACE and len(chat.message) > 0:
+                            chat.message = chat.message[:-1]
+                        elif len(chat.message) <= 23:
+                            chat.message += event.unicode
+
         repaint()
         pygame.display.update()
 
 def draw_menu_title(title, color, y):
-    font = pygame.font.Font('assets/fonts/pixelfont.ttf', 69)
+    font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 69)
     text_surface = font.render(title, True, color)
     screen.blit(text_surface, (MENU_SIZE[0] // 2 - text_surface.get_width() // 2, y))
 
 def main_menu():
-    global client
+    global client, connected_clients
     username = ''
     hint_text = 'Enter your name'
-    font = pygame.font.Font('assets/fonts/pixelfont.ttf', 25)
+    font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 25)
     input_rect = pygame.Rect(100, 280, 400, 44)
     color_unselected = Colors.WHITE
     color_selected = (187, 187, 187)
@@ -247,26 +265,44 @@ def main_menu():
     pygame.quit()
     sys.exit()
 
-def handle_data():
-    global server_info, connected_clients, client, start, grid
+def receive_data():
+    global connected_clients, client, start, grid, in_game
     while True:
-        data = network.receive()
-        if isinstance(data, list):
-            connected_clients = data
-            print('updated clients')
-            for c in connected_clients:  # get current client
-                if c.uid == client.uid:
-                    client = c
-        if isinstance(data, tuple) and not server_info.is_drawing:  # get grid data
-            grid.grid[data[2]][data[1]].set_color(data[0])
-        if isinstance(data, ServerPackage):
-            server_info = data
-        if data == 'start':
-            start = True
-        network.send(package)
+        try:
+            if not in_game:
+                data = network.receive()  # get connected clients
+                if isinstance(data, list):
+                    connected_clients = data
+                    for c in connected_clients:  # get current client
+                        if c.uid == client.uid:
+                            client = c
+                elif data == 'start':
+                    start = True
+                    in_game = True
+
+            else:
+                # get round information
+                topbar.word = network.get('word')['word']  # get word
+                client.drawing = network.get('drawing')['drawing']
+                topbar.time = network.get('time')['time']  # get round time
+
+                if not client.drawing:
+                    res = network.get('grid')['grid']  # get grid
+                    grid.update(res)
+
+                response = network.get('clients')  # get all connected clients
+                connected_clients = response['clients']
+                for c in connected_clients:  # get current client
+                    if c.uid == client.uid:
+                        client = c
+
+                messages = network.get('chat')['chat']  # get chat
+                chat.update(messages)
+        except:
+            pass
 
 def draw_lobby_title(title, x, y):
-    font = pygame.font.Font('assets/fonts/pixelfont.ttf', 44)
+    font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 44)
     text_surface = font.render(title, True, (255, 255, 255))
     if title == 'Settings':
         screen.blit(text_surface, (x // 2 - text_surface.get_width() // 2, y))
@@ -274,8 +310,8 @@ def draw_lobby_title(title, x, y):
         screen.blit(text_surface, (x + 150 - text_surface.get_width() // 2, y))
 
 def lobby_menu():
-    global client, connected_clients, server_info
-    start_new_thread(handle_data, ())
+    global client, connected_clients
+    start_new_thread(receive_data, ())
     ready_button = Button((92, 184, 92), 100, 255 + 8 * 31, 400, 55, text='Ready?')
     while True:
         screen.fill((36, 81, 149))
@@ -285,8 +321,7 @@ def lobby_menu():
                 sys.exit()
             if pygame.mouse.get_pressed()[0]:
                 if ready_button.hover(pygame.mouse.get_pos()) and not client.ready:
-                    package.ready = True
-                    network.send(package)
+                    network.send('ready')
                     ready_button.text = 'Ready!'
 
         if start:

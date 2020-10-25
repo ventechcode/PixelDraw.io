@@ -18,7 +18,7 @@ class TopBar:
         pygame.draw.rect(win, Colors.WHITE, bar)
 
         # draw timer
-        timer_font = pygame.font.Font('assets/fonts/pixelfont.ttf', 44)
+        timer_font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 44)
         timer_surface = timer_font.render(str(self.time), False, Colors.BLACK)
         if self.time <= 10:
             timer_surface = timer_font.render(str(self.time), False, (232, 9, 32))

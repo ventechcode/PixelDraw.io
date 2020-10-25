@@ -12,6 +12,7 @@ class Client:
         client.ready = player.ready
         client.points = player.points
         client.rank = player.rank
+        client.drawing = player.drawing
         return client
 
     def __init__(self, name):
@@ -20,14 +21,14 @@ class Client:
         self.ready = False
         self.points = 0
         self.rank = 1
-        self.drawing = True
+        self.drawing = False
 
     def draw_lobby_widget(self, win, x, y, yourself):
         if self.ready:
             color = (29, 191, 56)
         else:
             color = (232, 9, 32)
-        font = pygame.font.Font('assets/fonts/pixelfont.ttf', 22)
+        font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 22)
         text_surface = font.render(self.name, True, color)
         win.blit(text_surface, (x, y))
         if yourself:

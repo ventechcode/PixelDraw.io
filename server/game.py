@@ -1,5 +1,7 @@
 import random
 from round import Round
+from grid import Grid
+
 
 class Game:
     def __init__(self, players):
@@ -9,14 +11,11 @@ class Game:
         self.round_count = 0
         self.max_rounds = 3
         self.drawing_player_index = 0
+        self.grid = Grid()
         self.start_new_round()
 
     def start_new_round(self):
         self.round = Round(self.get_random_word(), self.players[self.drawing_player_index], self)
-        if self.drawing_player_index >= len(self.players) and self.round_count <= self.max_rounds:
-            self.drawing_player_index = 0
-            self.round_count += 1
-        self.drawing_player_index += 1
 
     def make_player_guess(self, player, word):
         return self.round.got_correct_guess(player, word)

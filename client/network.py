@@ -5,7 +5,7 @@ import pygame
 class Network:
     def __init__(self):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.host = '127.0.0.1'
+        self.host = '192.168.178.21'
         self.port = 4444
         self.addr = (self.host, self.port)
 
@@ -20,14 +20,35 @@ class Network:
     def send(self, data):
         try:
             self.client.send(pickle.dumps(data))
+        except Exception as ex:
+            print(ex)
+
+    def receive(self):  # returns incoming data
+        try:
+            buff_size = 4096
+            data = bytearray()
+            while True:
+                chunk = self.client.recv(buff_size)
+                data += chunk
+                if len(chunk) < buff_size:
+                    break
+            return pickle.loads(data)
+        except Exception as ex:
+            print(ex)
+
+    def get(self, data):  # returns the response for the request
+        try:
+            self.client.send(pickle.dumps(data))
+            buff_size = 4096
+            data = bytearray()
+            while True:
+                chunk = self.client.recv(buff_size)
+                data += chunk
+                if len(chunk) < buff_size:
+                    break
+            return pickle.loads(data)
         except Exception as e:
             print(e)
-
-    def receive(self):
-        try:
-            return pickle.loads(self.client.recv(2048))
-        except:
-            pass
 
     def disconnect(self):
         self.client.shutdown(2)

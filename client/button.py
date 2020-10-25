@@ -17,7 +17,7 @@ class Button:
         pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.height), 0)
 
         if self.text:
-            font = pygame.font.Font('./assets/fonts/' + font + '.ttf', font_size)
+            font = pygame.font.Font('client/assets/fonts/' + font + '.ttf', font_size)
             text = font.render(self.text, True, text_color)
             win.blit(text, (self.x + (self.width / 2 - text.get_width() / 2), self.y + (self.height / 2 - text.get_height() / 2)))
 

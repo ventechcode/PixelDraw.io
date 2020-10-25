@@ -1,6 +1,7 @@
 import pygame
 from colors import Colors
 from node import Node
+import pickle
 
 class Grid:
     def __init__(self, x_cells, y_cells, cell_size, x_off, y_off, color=Colors.WHITE):
@@ -38,3 +39,17 @@ class Grid:
             self.grid.append([])
             for j in range(self.yCells):
                 self.grid[i].append(Node(self.cellSize, self.color))
+
+    def update(self, compressed):
+        for y, _ in enumerate(compressed):
+            for x, color in enumerate(compressed[y]):
+                self.grid[y][x].set_color(color)
+
+    def get_compressed_grid(self):  # the compressed grid represents the grid with only containing the colors from the Node objects
+        compressed = []
+        for i in range(self.xCells):
+            compressed.append([])
+            for j in range(self.yCells):
+                compressed[i].append(self.grid[i][j].color)
+
+        return compressed

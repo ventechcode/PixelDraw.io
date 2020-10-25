@@ -12,12 +12,13 @@ class Player:
         self.rank = 1
         self.points = 0
         self.game = None
+        self.drawing = False
 
     def set_game(self, game):
         self.game = game
 
     def guess(self, word):
-        self.game.make_player_guess(self, word)
+        return self.game.make_player_guess(self, word)
 
     def update_points(self, points):
         self.points += points
