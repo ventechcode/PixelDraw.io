@@ -53,6 +53,8 @@ def handle_player(connection):
 
                     if isinstance(data, list):
                         player.game.grid.completely_update(data)
+                    elif isinstance(data, dict):
+                        player.game.make_player_guess(player, data['guess'])
 
                     if data == 'word':
                         send_msg['word'] = player.game.round.word
@@ -70,19 +72,8 @@ def handle_player(connection):
                         send_msg['grid'] = player.game.grid.get_grid()
                     elif data == 'chat':
                         send_msg['chat'] = player.game.round.chat.messages
-
-                    if isinstance(data, dict):
-                        try:
-                            if isinstance(data['guess'], str):
-                                player.game.make_player_guess(player, data['guess'])
-
-                            if isinstance(data['grid_data'], tuple):
-                                player.game.grid.update(data['grid_data'])
-                            elif isinstance(data['grid_data'], str):
-                                if data['grid_data'] == 'clear':
-                                    player.game.grid.new_empty_grid()
-                        except KeyError:
-                            pass
+                    elif data == 'round':
+                        send_msg['round'] = player.game.round_count
 
                     connection.send(pickle.dumps(send_msg))
 
@@ -91,12 +82,11 @@ def handle_player(connection):
 
         except socket.error:
             print(f'{player.name} disconnected.')
+            player.game.player_disconnect(player)
             if player in players:
                 players.remove(player)
             if connection in connections:
                 connections.remove(connection)
-            if player.game:
-                player.game.player_disconnect(player)
             broadcast(players_to_clients(players))
             break
 

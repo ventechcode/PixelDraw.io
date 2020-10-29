@@ -1,24 +1,47 @@
 import random
 from round import Round
 from grid import Grid
-
+from chat import MessageType
+import time
 
 class Game:
     def __init__(self, players):
         self.players = players
         self.used_words = set()
-        self.round = None
-        self.round_count = 0
-        self.max_rounds = 3
+        self.drawing_order = []
         self.drawing_player_index = 0
+        self.round = None
+        self.max_rounds = 3
         self.grid = Grid()
+        self.round_count = 1
         self.start_new_round()
 
     def start_new_round(self):
-        self.round = Round(self.get_random_word(), self.players[self.drawing_player_index], self)
+        if len(self.drawing_order) < len(self.players) and self.round_count == 1:  # Round one
+            drawing_player = random.choice(self.players)
+            if drawing_player not in self.drawing_order:
+                self.drawing_order.append(drawing_player)
+                self.round = Round(self.get_random_word(), drawing_player, self)
+            else:
+                self.start_new_round()
+        elif self.drawing_player_index < len(self.drawing_order) and self.round_count == 2:
+            self.round = Round(self.get_random_word(), self.drawing_order[self.drawing_player_index], self)
+            self.drawing_player_index += 1
+        elif self.drawing_player_index < len(self.drawing_order) and self.round_count == 3:
+            self.round = Round(self.get_random_word(), self.drawing_order[self.drawing_player_index], self)
+            self.drawing_player_index += 1
+        else:
+            if self.round_count < self.max_rounds:
+                self.round_count += 1
+                self.drawing_player_index = 0
+                self.start_new_round()
+            else:
+                self.end_game()
 
     def make_player_guess(self, player, word):
-        return self.round.got_correct_guess(player, word)
+        self.round.got_correct_guess(player, word)
+        if player in self.round.players_guessed:
+            player.guessed = True
 
     def get_random_word(self):
         words = []
@@ -34,9 +57,19 @@ class Game:
     def player_disconnect(self, player):
         if player in self.players:
             self.players.remove(player)
+            self.round.chat.add_message(f'{MessageType.ERROR}{player.name} left.')
         if len(self.players) == 1:
             self.end_game()
 
     def end_game(self):
+        self.round.chat.add_message(f'{MessageType.INFO}The game has ended.')
+        time.sleep(2)
         for p in self.players:
             p.set_game(None)
+
+    def end_round(self):
+        self.grid.new_empty_grid()
+        for player in self.players:
+            player.guessed = False
+            player.drawing = False
+        self.start_new_round()

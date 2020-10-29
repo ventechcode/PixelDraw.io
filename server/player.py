@@ -13,6 +13,7 @@ class Player:
         self.points = 0
         self.game = None
         self.drawing = False
+        self.guessed = False
 
     def set_game(self, game):
         self.game = game

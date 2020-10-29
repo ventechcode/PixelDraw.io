@@ -11,27 +11,34 @@ class TopBar:
         self.round = 1
         self.max_rounds = 3
         self.time = 90
-        self.is_drawing = False
 
-    def draw(self, win):
+    def draw(self, win, client):
         bar = pygame.Rect(self.x, self.y, self.width, self.height)
         pygame.draw.rect(win, Colors.WHITE, bar)
 
         # draw timer
-        timer_font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 44)
-        timer_surface = timer_font.render(str(self.time), False, Colors.BLACK)
+        font = pygame.font.Font('client/assets/fonts/Helvetica-Bold.ttf', 44)
+        timer_surface = font.render(str(self.time), True, Colors.BLACK)
         if self.time <= 10:
-            timer_surface = timer_font.render(str(self.time), False, (232, 9, 32))
-        win.blit(timer_surface, (bar.x + 20, bar.y + bar.height // 2 - timer_surface.get_height() // 2 - 1))
+            timer_surface = font.render(str(self.time), True, (232, 9, 32))
+        win.blit(timer_surface, (bar.x + 30, bar.y + bar.height // 2 - timer_surface.get_height() // 2 + 4))
 
         # draw word & underscores
-        if self.is_drawing:
+        if client.drawing or client.guessed:
             text = self.word
+            font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 36)
+            text_surface = font.render(text, True, Colors.BLACK)
+            win.blit(text_surface, (self.x + self.width // 2 - text_surface.get_width() // 2, self.y + self.height // 2 - text_surface.get_height() // 2 + 4))
         else:
             text = self.underscore_word()
+            font = pygame.font.Font('client/assets/fonts/Helvetica-Bold.ttf', 50)
+            text_surface = font.render(text, True, Colors.BLACK)
+            win.blit(text_surface, (self.x + self.width // 2 - text_surface.get_width() // 2, self.y + self.height // 2 - text_surface.get_height() // 2 - 3))
 
-        text_surface = timer_font.render(text, True, Colors.BLACK)
-        win.blit(text_surface, (self.x + self.width // 2 - text_surface.get_width() // 2, self.y + self.height // 2 - text_surface.get_height() // 2))
+        # draw round count
+        round_font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 36)
+        round_surface = round_font.render(f'Round {self.round}/{self.max_rounds}', True, Colors.BLACK)
+        win.blit(round_surface, (self.x + 60 + timer_surface.get_width(), self.y + self.height // 2 - round_surface.get_height() // 2 + 3))
 
     def underscore_word(self):
         temp = ''
@@ -39,5 +46,5 @@ class TopBar:
             if char == ' ':
                 temp += '  '
             else:
-                temp += '_ '
+                temp += '_  '
         return temp

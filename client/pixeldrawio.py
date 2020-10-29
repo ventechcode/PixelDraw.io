@@ -1,5 +1,6 @@
 import pygame
 import sys
+import ctypes
 from color_palette import ColorPalette
 from top_bar import TopBar
 from chat import Chat
@@ -16,6 +17,7 @@ pygame.font.init()
 
 SIZE = (1400, 960)
 MENU_SIZE = (600, 600)
+ctypes.windll.user32.SetProcessDPIAware()
 screen = pygame.display.set_mode(MENU_SIZE)
 pygame.display.set_caption('PixelDraw.io')
 clock = pygame.time.Clock()
@@ -35,7 +37,7 @@ X_OFF = 316
 Y_OFF = 90
 grid = Grid(x_cells=64, y_cells=64, cell_size=12, x_off=X_OFF, y_off=Y_OFF, color=Colors.WHITE)
 grid_on_icon = pygame.image.load('client/assets/icons/grid_on.png')
-grid_off_icon = pygame.image.load('client/assets/icons/grid_on.png')
+grid_off_icon = pygame.image.load('client/assets/icons/grid_off.png')
 
 toggle_btn = Button(Colors.WHITE, X_OFF, Y_OFF + (grid.yCells * grid.cellSize) + 25, 50, 50, text=None, icon=grid_on_icon)
 palette = ColorPalette()
@@ -92,12 +94,17 @@ def repaint():
 
     for i, c in enumerate(connected_clients):  # draw scoreboard
         if i % 2 == 0:
-            c.draw_game_widget(screen, 15, grid.yOff + i * 55, (238, 237, 239), c.uid == client.uid)
+            if c.guessed:
+                c.draw_game_widget(screen, 15, grid.yOff + i * 55, (130, 197, 104), c.uid == client.uid)
+            else:
+                c.draw_game_widget(screen, 15, grid.yOff + i * 55, (238, 237, 239), c.uid == client.uid)
         else:
-            c.draw_game_widget(screen, 15, grid.yOff + i * 55, Colors.WHITE, c.uid == client.uid)
+            if c.guessed:
+                c.draw_game_widget(screen, 15, grid.yOff + i * 55, (151, 215, 129), c.uid == client.uid)
+            else:
+                c.draw_game_widget(screen, 15, grid.yOff + i * 55, Colors.WHITE, c.uid == client.uid)
 
-    topbar.draw(screen)
-
+    topbar.draw(screen, client)
     chat.draw(screen)
 
 def flood_fill(col, row, target_color, replacement_color):  # recursive flood fill algorithm
@@ -134,10 +141,10 @@ def main():
 
                     if Tool.selected == 'brush':
                         grid.set_color(row, col, palette.selected_color)
-                        network.send({'grid_data': (row, col, palette.selected_color)})
+                        network.send(grid.get_compressed_grid())
                     elif Tool.selected == 'eraser':
                         grid.set_color(row, col, grid.color)
-                        network.send({'grid_data': (row, col, grid.color)})
+                        network.send(grid.get_compressed_grid())
                     elif Tool.selected == 'fill':
                         flood_fill(col, row, grid.grid[col][row].color, palette.selected_color)
                         network.send(grid.get_compressed_grid())
@@ -157,7 +164,7 @@ def main():
 
                 if delete.hover(pos):  # clicked delete tool
                     grid.clear()
-                    network.send({'grid_data': 'clear'})
+                    network.send(grid.get_compressed_grid())
                 elif brush.hover(pos):  # clicked brush tool
                     brush.set_selected()
                 elif eraser.hover(pos):  # clicked eraser tool
@@ -167,23 +174,21 @@ def main():
                 elif eyedropper.hover(pos):  # clicked eyedropper tool
                     eyedropper.set_selected()
 
-                if not client.drawing:
-                    if chat.input_hover(pos):
-                        chat.input_active = True
-                    else:
-                        chat.input_active = False
+                if chat.input_hover(pos):
+                    chat.input_active = True
+                else:
+                    chat.input_active = False
 
             if event.type == pygame.KEYDOWN:
-                if not client.drawing:
-                    if chat.input_active:
-                        if event.key == pygame.K_RETURN:
-                            network.send({'guess': chat.message})
-                            chat.message = ''
-                            chat.input_active = False
-                        elif event.key == pygame.K_BACKSPACE and len(chat.message) > 0:
-                            chat.message = chat.message[:-1]
-                        elif len(chat.message) <= 23:
-                            chat.message += event.unicode
+                if chat.input_active:
+                    if event.key == pygame.K_RETURN:
+                        network.send({'guess': chat.message})
+                        chat.message = ''
+                        chat.input_active = False
+                    elif event.key == pygame.K_BACKSPACE and len(chat.message) > 0:
+                        chat.message = chat.message[:-1]
+                    elif len(chat.message) <= 23:
+                        chat.message += event.unicode
 
         repaint()
         pygame.display.update()
@@ -285,6 +290,7 @@ def receive_data():
                 topbar.word = network.get('word')['word']  # get word
                 client.drawing = network.get('drawing')['drawing']
                 topbar.time = network.get('time')['time']  # get round time
+                topbar.round = network.get('round')['round']
 
                 if not client.drawing:
                     res = network.get('grid')['grid']  # get grid
@@ -297,7 +303,7 @@ def receive_data():
                         client = c
 
                 messages = network.get('chat')['chat']  # get chat
-                chat.update(messages)
+                chat.update(messages, client)
         except:
             pass
 

@@ -13,6 +13,7 @@ class Client:
         client.points = player.points
         client.rank = player.rank
         client.drawing = player.drawing
+        client.guessed = player.guessed
         return client
 
     def __init__(self, name):
@@ -22,6 +23,7 @@ class Client:
         self.points = 0
         self.rank = 1
         self.drawing = False
+        self.guessed = False
 
     def draw_lobby_widget(self, win, x, y, yourself):
         if self.ready:
