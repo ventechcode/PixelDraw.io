@@ -71,7 +71,7 @@ def handle_player(connection):
                     elif data == 'grid':
                         send_msg['grid'] = player.game.grid.get_grid()
                     elif data == 'chat':
-                        send_msg['chat'] = player.game.round.chat.messages
+                        send_msg['chat'] = player.game.chat.messages
                     elif data == 'round':
                         send_msg['round'] = player.game.round_count
 

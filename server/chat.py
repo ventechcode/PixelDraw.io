@@ -11,3 +11,4 @@ class MessageType:
     ERROR = 'ERROR'  # red server message about game errors
     WARNING = 'WARNING'  # orange server message for important hints
     INVISIBLE = 'INVISIBLE'  # only appears to players who already guessed
+    SCORE = 'SCORE'

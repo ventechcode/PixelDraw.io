@@ -17,7 +17,7 @@ pygame.font.init()
 
 SIZE = (1400, 960)
 MENU_SIZE = (600, 600)
-ctypes.windll.user32.SetProcessDPIAware()
+ctypes.windll.user32.SetProcessDPIAware()  # will disable screen stretching
 screen = pygame.display.set_mode(MENU_SIZE)
 pygame.display.set_caption('PixelDraw.io')
 clock = pygame.time.Clock()
@@ -107,7 +107,7 @@ def repaint():
     topbar.draw(screen, client)
     chat.draw(screen)
 
-def flood_fill(col, row, target_color, replacement_color):  # recursive flood fill algorithm
+def flood_fill(col, row, target_color, replacement_color):
     if target_color == replacement_color:
         return
     elif grid.grid[col][row].color != target_color:
@@ -286,15 +286,15 @@ def receive_data():
                     in_game = True
 
             else:
+                if not client.drawing:
+                    res = network.get('grid')['grid']  # get grid
+                    grid.update(res)
+
                 # get round information
                 topbar.word = network.get('word')['word']  # get word
                 client.drawing = network.get('drawing')['drawing']
                 topbar.time = network.get('time')['time']  # get round time
                 topbar.round = network.get('round')['round']
-
-                if not client.drawing:
-                    res = network.get('grid')['grid']  # get grid
-                    grid.update(res)
 
                 response = network.get('clients')  # get all connected clients
                 connected_clients = response['clients']

@@ -31,14 +31,14 @@ class TopBar:
             win.blit(text_surface, (self.x + self.width // 2 - text_surface.get_width() // 2, self.y + self.height // 2 - text_surface.get_height() // 2 + 4))
         else:
             text = self.underscore_word()
-            font = pygame.font.Font('client/assets/fonts/Helvetica-Bold.ttf', 50)
+            font = pygame.font.Font('client/assets/fonts/Helvetica-Bold.ttf', 48)
             text_surface = font.render(text, True, Colors.BLACK)
             win.blit(text_surface, (self.x + self.width // 2 - text_surface.get_width() // 2, self.y + self.height // 2 - text_surface.get_height() // 2 - 3))
 
         # draw round count
-        round_font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 36)
+        round_font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 28)
         round_surface = round_font.render(f'Round {self.round}/{self.max_rounds}', True, Colors.BLACK)
-        win.blit(round_surface, (self.x + 60 + timer_surface.get_width(), self.y + self.height // 2 - round_surface.get_height() // 2 + 3))
+        win.blit(round_surface, (self.x + 60 + timer_surface.get_width(), self.y + self.height // 2 - round_surface.get_height() // 2 + 4))
 
     def underscore_word(self):
         temp = ''
@@ -46,5 +46,5 @@ class TopBar:
             if char == ' ':
                 temp += '  '
             else:
-                temp += '_  '
+                temp += '_ '
         return temp

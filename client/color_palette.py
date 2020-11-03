@@ -21,5 +21,5 @@ class ColorPalette:
             self.positions.append((440 + i * 25, 90 + (64 * 12) + 50))
 
     def draw_palette(self, win):
-        for i in range(0, len(self.color_cells)):
-            win.blit(self.color_cells[i].subsurface, self.positions[i])
+        for color_cell, position in zip(self.color_cells, self.positions):
+            win.blit(color_cell.subsurface, position)

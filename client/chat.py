@@ -32,7 +32,7 @@ class Chat:
             text = hint_font.render(self.hint_text, True, (153, 153, 166))
             win.blit(text, (self.x + 12, self.y + self.height - 52 // 2 - text.get_height() // 2 + 2))
 
-        if len(self.messages) * self.message_surface.get_height() > self.height - 52:  # remove top message if chat is full
+        while len(self.messages) * self.message_surface.get_height() > self.height - 52:  # remove top message if chat is full
             self.messages = self.messages[1:]
 
         for i, message in enumerate(self.messages):  # draw chat messages

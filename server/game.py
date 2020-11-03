@@ -1,8 +1,9 @@
 import random
 from round import Round
 from grid import Grid
-from chat import MessageType
+from chat import MessageType, Chat
 import time
+from _thread import *
 
 class Game:
     def __init__(self, players):
@@ -13,7 +14,9 @@ class Game:
         self.round = None
         self.max_rounds = 3
         self.grid = Grid()
+        self.chat = Chat()
         self.round_count = 1
+        self.chat.add_message(f'{MessageType.INFO}Round {self.round_count}/{self.max_rounds} started.')
         self.start_new_round()
 
     def start_new_round(self):
@@ -34,6 +37,7 @@ class Game:
             if self.round_count < self.max_rounds:
                 self.round_count += 1
                 self.drawing_player_index = 0
+                self.chat.add_message(f'{MessageType.INFO}Round {self.round_count}/{self.max_rounds} started.')
                 self.start_new_round()
             else:
                 self.end_game()
@@ -57,12 +61,12 @@ class Game:
     def player_disconnect(self, player):
         if player in self.players:
             self.players.remove(player)
-            self.round.chat.add_message(f'{MessageType.ERROR}{player.name} left.')
+            self.chat.add_message(f'{MessageType.ERROR}{player.name} left.')
         if len(self.players) == 1:
             self.end_game()
 
     def end_game(self):
-        self.round.chat.add_message(f'{MessageType.INFO}The game has ended.')
+        self.chat.add_message(f'{MessageType.INFO}The game has ended.')
         time.sleep(2)
         for p in self.players:
             p.set_game(None)
