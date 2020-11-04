@@ -1,6 +1,9 @@
 import pygame
 import sys
 import ctypes
+from _thread import *
+import string
+import random
 from color_palette import ColorPalette
 from top_bar import TopBar
 from chat import Chat
@@ -10,13 +13,12 @@ from button import Button
 from network import Network
 from client import Client
 from tool import Tool
-from _thread import *
 
 pygame.init()
 pygame.font.init()
 
 SIZE = (1400, 960)
-MENU_SIZE = (600, 600)
+MENU_SIZE = (800, 600)
 ctypes.windll.user32.SetProcessDPIAware()  # will disable screen stretching
 screen = pygame.display.set_mode(MENU_SIZE)
 pygame.display.set_caption('PixelDraw.io')
@@ -30,6 +32,7 @@ client = None
 connected_clients = []
 start = False
 in_game = False
+lobby_id = ''
 
 network = Network()
 
@@ -199,15 +202,19 @@ def draw_menu_title(title, color, y):
     screen.blit(text_surface, (MENU_SIZE[0] // 2 - text_surface.get_width() // 2, y))
 
 def main_menu():
-    global client, connected_clients
+    global client, connected_clients, lobby_id
     username = ''
-    hint_text = 'Enter your name'
-    font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 25)
-    input_rect = pygame.Rect(100, 280, 400, 44)
+    lobby_key = ''
+    hint_text = 'Enter your name here'
+    input_rect = pygame.Rect(200, 200, 400, 44)
+    key_hint_text = 'Enter key to join a private lobby'
+    key_input_rect = pygame.Rect(200, 270, 400, 44)
+    key_input_selected = False
     color_unselected = Colors.WHITE
-    color_selected = (187, 187, 187)
+    color_selected = Colors.WHITE
     selected = False
-    play_button = Button((92, 184, 92), 100, 370, 400, 55, text='Play!')
+    play_button = Button((92, 184, 92), 200, 345, 400, 55, text='Play!')
+    private_lobby_btn = Button((49, 176, 213), 200, 425, 400, 55, text='Create Private Lobby')
     network_error = False
     run = True
     while run:
@@ -223,23 +230,48 @@ def main_menu():
                         selected = False
                     elif len(username) <= 17:
                         username += event.unicode
+                elif key_input_selected:
+                    if event.key == pygame.K_BACKSPACE:
+                        lobby_key = lobby_key[:- 1]
+                    elif event.key == pygame.K_RETURN:
+                        key_input_selected = False
+                    elif len(lobby_key) <= 6:
+                        lobby_key += event.unicode
             if pygame.mouse.get_pressed()[0]:
                 x, y = pygame.mouse.get_pos()
                 if input_rect.collidepoint(x, y):
                     selected = True
                 else:
                     selected = False
+                if key_input_rect.collidepoint(x, y):
+                    key_input_selected = True
+                else:
+                    key_input_selected = False
 
                 if play_button.hover((x, y)) and len(username.strip()) >= 1:  # clicked play
                     username = username.strip()
                     client = Client(username)
                     if network.connect():
-                        network.send(client)
+                        if len(lobby_key) == 6 or lobby_key.startswith('#'):
+                            network.send({'client': client, 'key': lobby_key.replace('#', '').upper()})
+                        else:
+                            network.send(client)
                         lobby_menu()
                     else:
                         network_error = True
 
-        draw_menu_title('PixelDraw.io', (199, 9, 237), 150)
+                if private_lobby_btn.hover((x, y)) and len(username.strip()) >= 1:
+                    username = username.strip()
+                    client = Client(username)
+                    client.lobby_leader = True
+                    if network.connect():
+                        lobby_id = generate_private_lobby_id()
+                        network.send((client, lobby_id))
+                        lobby_menu()
+                    else:
+                        network_error = True
+
+        draw_menu_title('PixelDraw.io', (199, 9, 237), 69)
 
         play_button.draw(screen, Colors.WHITE, 'pixelfont', 31, False)
         if len(username.strip()) >= 1:
@@ -247,21 +279,44 @@ def main_menu():
                 play_button.color = (68, 157, 68)
             else:
                 play_button.color = (92, 184, 92)
+            if private_lobby_btn.hover(pygame.mouse.get_pos()):
+                private_lobby_btn.color = (49, 176, 240)
+            else:
+                private_lobby_btn.color = (49, 176, 200)
         else:
             play_button.color = (25, 25, 25)
+            private_lobby_btn.color = (25, 25, 25)
 
+        private_lobby_btn.draw(screen, Colors.WHITE, 'pixelfont', 31, False)
+
+        font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 24)
         if selected:
             pygame.draw.rect(screen, color_selected, input_rect, 2)  # selected input field border
             text_surface = font.render(username, True, Colors.WHITE)
-            screen.blit(text_surface, (112, 280 + 10))
+            screen.blit(text_surface, (212, 200 + 12))
         else:
             pygame.draw.rect(screen, color_unselected, input_rect, 2)  # unselected input field border
             if username.strip() == '':
                 text_surface = font.render(hint_text, True, Colors.WHITE)
-                screen.blit(text_surface, (112, 280 + 10))
+                screen.blit(text_surface, (212, 200 + 12))
             else:
                 text_surface = font.render(username, True, Colors.WHITE)
-                screen.blit(text_surface, (112, 280 + 10))
+                screen.blit(text_surface, (212, 200 + 12))
+
+        font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 22)
+        pygame.draw.rect(screen, (187, 187, 187), key_input_rect, 2)  # unselected input field border
+        if key_input_selected:
+            font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 25)
+            text_surface = font.render(lobby_key.upper(), True, (187, 187, 187))
+            screen.blit(text_surface, (212, 270 + 13))
+        else:
+            if lobby_key.strip() == '':
+                text_surface = font.render(key_hint_text, True, (187, 187, 187))
+                screen.blit(text_surface, (212, 270 + 13))
+            else:
+                font = pygame.font.Font('client/assets/fonts/Helvetica.ttf', 25)
+                text_surface = font.render(lobby_key.upper(), True, (187, 187, 187))
+                screen.blit(text_surface, (212, 270 + 13))
 
         if network_error:
             Network.draw_error_message(screen, '[NetworkError] Can\'t connect to Game-Server.', 600, 455)
@@ -271,12 +326,12 @@ def main_menu():
     sys.exit()
 
 def receive_data():
-    global connected_clients, client, start, grid, in_game
+    global connected_clients, client, start, grid, in_game, lobby_id
     while True:
         try:
             if not in_game:
-                data = network.receive()  # get connected clients
-                if isinstance(data, list):
+                data = network.receive()
+                if isinstance(data, list):  # get connected clients
                     connected_clients = data
                     for c in connected_clients:  # get current client
                         if c.uid == client.uid:
@@ -310,17 +365,19 @@ def receive_data():
 def draw_lobby_title(title, x, y):
     font = pygame.font.Font('client/assets/fonts/pixelfont.ttf', 44)
     text_surface = font.render(title, True, (255, 255, 255))
-    if title == 'Settings':
+    if title == 'Coming Soon!':
         screen.blit(text_surface, (x // 2 - text_surface.get_width() // 2, y))
     else:
         screen.blit(text_surface, (x + 150 - text_surface.get_width() // 2, y))
 
 def lobby_menu():
-    global client, connected_clients
+    global client, connected_clients, lobby_id
     start_new_thread(receive_data, ())
-    ready_button = Button((92, 184, 92), 100, 255 + 8 * 31, 400, 55, text='Ready?')
+    ready_button = Button((92, 184, 92), 200, 255 + 8 * 31, 400, 55, text='Ready?')
     while True:
         screen.fill((36, 81, 149))
+        if client.lobby_leader:
+            pygame.display.set_caption(f'PixelDraw.io | Lobby #{lobby_id}')
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -334,17 +391,20 @@ def lobby_menu():
             pygame.display.set_mode(SIZE)
             main()
 
-        draw_menu_title('Lobby', (199, 9, 237), 36)
-        draw_lobby_title('Settings', 300, 150)
-        draw_lobby_title('Players', 300, 150)
+        if client.lobby_leader:
+            draw_menu_title(f'Lobby #{lobby_id}', (199, 9, 237), 36)
+        else:
+            draw_menu_title(f'Lobby', (199, 9, 237), 36)
+        draw_lobby_title('Coming Soon!', 400, 150)
+        draw_lobby_title('Players', 400, 150)
         
-        pygame.draw.line(screen, Colors.WHITE, (300, 155), (300, 210 + 8 * 31), 3)  # draw separator
+        pygame.draw.line(screen, Colors.WHITE, (400, 155), (400, 210 + 8 * 31), 3)  # draw separator
 
         for i in range(0, len(connected_clients)):   # draw connected players
             if connected_clients[i].uid == client.uid:
-                connected_clients[i].draw_lobby_widget(screen, 324, 208 + i * 35, True)
+                connected_clients[i].draw_lobby_widget(screen, 425, 210 + i * 35, True)
             else:
-                connected_clients[i].draw_lobby_widget(screen, 324, 208 + i * 35, False)
+                connected_clients[i].draw_lobby_widget(screen, 425, 210 + i * 35, False)
 
         if client.ready:
             ready_button.draw(screen, (68, 157, 68), 'pixelfont', 31)
@@ -357,5 +417,9 @@ def lobby_menu():
             ready_button.color = (92, 184, 92)
 
         pygame.display.update()
+
+def generate_private_lobby_id(size=6):
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(size))
 
 main_menu()

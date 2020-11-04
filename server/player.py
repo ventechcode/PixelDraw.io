@@ -3,7 +3,9 @@ class Player:
 
     @staticmethod
     def parse_client(client):
-        return Player(client.name, client.uid)
+        player = Player(client.name, client.uid)
+        player.lobby_leader = client.lobby_leader
+        return player
 
     def __init__(self, name, uid):
         self.name = name
@@ -14,6 +16,7 @@ class Player:
         self.game = None
         self.drawing = False
         self.guessed = False
+        self.lobby_leader = False
 
     def set_game(self, game):
         self.game = game
